@@ -38,7 +38,7 @@ def analyze():
                 elif "text" in part:
                     gemini_parts.append({"text": part["text"]})
 
-        model = genai.GenerativeModel("gemini-2.0-flash")
+        model = genai.GenerativeModel("gemini-2.5-flash")
         response = model.generate_content({"parts": gemini_parts})
         text = response.text
 
