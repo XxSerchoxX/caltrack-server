@@ -1,8 +1,8 @@
 import os
-import json
 import google.generativeai as genai
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+import base64
 
 app = Flask(__name__)
 CORS(app, origins="*", allow_headers=["Content-Type"])
@@ -19,13 +19,33 @@ def analyze():
         return response, 200
     try:
         body = request.get_json()
-        contents = body.get("contents", [])
+        raw_contents = body.get("contents", [])
+
+        # Convert frontend format to Gemini SDK format
+        gemini_parts = []
+        for content in raw_contents:
+            for part in content.get("parts", []):
+                if "inlineData" in part:
+                    # Frontend sends inlineData, Gemini SDK expects inline_data
+                    gemini_parts.append({
+                        "inline_data": {
+                            "mime_type": part["inlineData"]["mimeType"],
+                            "data": part["inlineData"]["data"]
+                        }
+                    })
+                elif "inline_data" in part:
+                    gemini_parts.append(part)
+                elif "text" in part:
+                    gemini_parts.append({"text": part["text"]})
+
         model = genai.GenerativeModel("gemini-2.5-flash")
-        response = model.generate_content(contents)
+        response = model.generate_content({"parts": gemini_parts})
         text = response.text
+
         resp = jsonify({"candidates": [{"content": {"parts": [{"text": text}]}}]})
         resp.headers["Access-Control-Allow-Origin"] = "*"
         return resp
+
     except Exception as e:
         resp = jsonify({"error": str(e)})
         resp.headers["Access-Control-Allow-Origin"] = "*"
